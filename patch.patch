@@ -1,0 +1,290 @@
+From 67b220f518cc8f1fa73a705c0d4d83e4dfbb9009 Mon Sep 17 00:00:00 2001
+From: r00t1000 <jacob.jime@gmail.com>
+Date: Fri, 19 Jan 2018 16:32:24 -0800
+Subject: [PATCH] Daemon now opens via main process, LandingPage complete,
+ Install page complete, and wallet page template added.
+
+---
+ src/src/main/index.js                       |  22 ++++-
+ src/src/renderer/components/Install.vue     |  26 ++++--
+ src/src/renderer/components/LandingPage.vue |  27 ++++--
+ src/src/renderer/components/Wallet.vue      | 130 ++++++++++++++++++++++++++++
+ 4 files changed, 192 insertions(+), 13 deletions(-)
+
+diff --git a/src/src/main/index.js b/src/src/main/index.js
+index 880d616..2c7d92b 100644
+--- a/src/src/main/index.js
++++ b/src/src/main/index.js
+@@ -1,4 +1,4 @@
+-import { app, BrowserWindow } from 'electron'
++import { app, BrowserWindow, ipcMain } from 'electron'
+ 
+ /**
+  * Set `__static` path to static files in production
+@@ -36,6 +36,8 @@ app.on('ready', createWindow)
+ app.on('window-all-closed', () => {
+   if (process.platform !== 'darwin') {
+     app.quit()
++    // Kill the child process here
++
+   }
+ })
+ 
+@@ -44,3 +46,21 @@ app.on('activate', () => {
+     createWindow()
+   }
+ })
++
++// IPC main
++ipcMain.on('synchronous-message', (event, arg) => {
++  if (arg.message == 'start_daemon') {
++    event.returnValue = 'Starting daemon...';
++    var executablePath = arg.path;
++    var spawn = require('child_process').execFile;
++    var daemon = spawn(executablePath);
++    daemon.stdout.on('data', function(data) {
++      console.log(data);
++      if (data.indexOf('Core rpc server started ok') != -1) {
++        mainWindow.webContents.send('ping', 'start_height')
++      }
++    });
++  } else if (arg.message == 'stop_daemon') {
++    event.returnValue = 'Stopping daemon...';
++  }
++})
+diff --git a/src/src/renderer/components/Install.vue b/src/src/renderer/components/Install.vue
+index 0a2926a..92e8e42 100644
+--- a/src/src/renderer/components/Install.vue
++++ b/src/src/renderer/components/Install.vue
+@@ -44,6 +44,9 @@ var extract = require('extract-zip')
+ var http = require('http');
+ 
+ const remote = require('electron').remote
++const {
++  ipcRenderer
++} = require('electron');
+ 
+ export default {
+   name: 'install',
+@@ -258,6 +261,13 @@ export default {
+           self.targetHeight = JSON.parse(c).height;
+           self.height = self.localInfo.height;
+           self.installSteps[3].title = "Downloading Blockchain (" + self.localInfo.height + "/" + self.targetHeight + ")"
++          if (self.localInfo.height >= self.targetHeight) {
++            store.set('setupComplete', true);
++            self.installSteps[3].title = "Blockchain Downloaded"
++            self.makeSuccess(3);
++            self.makeSuccess(4);
++            self.$router.push('/wallet');
++          }
+         });
+       });
+     },
+@@ -280,17 +290,21 @@ export default {
+     },
+     runDaemon() {
+       var self = this;
+-      var spawn = require('child_process').execFile;
+       var executablePath = self.directories['electroDir'] + '\\electroneumd.exe';
+-      var daemon = spawn(executablePath);
+-      daemon.stdout.on('data', function(data) {
+-        console.log(data);
+-        if (data.indexOf('Core rpc server started ok') != -1) {
++      console.log(ipcRenderer.sendSync('synchronous-message', {
++        message: "start_daemon",
++        path: executablePath
++      }))
++      ipcRenderer.on('ping', (event, message) => {
++        if (message == 'start_height') {
++          console.log('Starting height...');
+           setInterval(function() {
+             self.getHeight();
+           }, 5000)
++        } else {
++          console.log("Not a valid IPC request...");
+         }
+-      });
++      })
+     },
+     startInstall() {
+       var self = this;
+diff --git a/src/src/renderer/components/LandingPage.vue b/src/src/renderer/components/LandingPage.vue
+index 926a6f4..3c05b6e 100644
+--- a/src/src/renderer/components/LandingPage.vue
++++ b/src/src/renderer/components/LandingPage.vue
+@@ -33,6 +33,9 @@
+   import SystemInformation from './LandingPage/SystemInformation';
+ 
+   var store = require('store');
++  const {
++    ipcRenderer
++  } = require('electron');
+ 
+ 
+   export default {
+@@ -45,12 +48,24 @@
+ 
+       open(link) {
+         this.$electron.shell.openExternal(link);
+-      },
+-
+-      mounted: function() {
+-        if (store.get('setupComplete') == true) {
+-          this.$router.push('/wallet')
+-        }
++      }
++    },
++    mounted: function() {
++      if (store.get('setupComplete') == true) {
++        var self = this;
++
++        // Get path
++        var electroDir = require('os').homedir() + '\\Desktop\\electrovault_wallet';
++        var executablePath = electroDir + '\\electroneumd.exe';
++
++        // Send message to start Daemon
++        console.log(ipcRenderer.sendSync('synchronous-message', {
++          message: "start_daemon",
++          path: executablePath
++        }))
++
++        // Move to wallet page
++        self.$router.push('/wallet')
+       }
+     }
+   }
+diff --git a/src/src/renderer/components/Wallet.vue b/src/src/renderer/components/Wallet.vue
+index e69de29..082e693 100644
+--- a/src/src/renderer/components/Wallet.vue
++++ b/src/src/renderer/components/Wallet.vue
+@@ -0,0 +1,130 @@
++<template>
++  <div id="wrapper">
++    <img id="logo" src="~@/assets/logo.png" alt="electroneum-logo">
++    <main>
++      <div class="left-side">
++        <span class="title">
++          Wallet Page
++        </span>
++        <system-information></system-information>
++      </div>
++
++      <div class="right-side">
++        <div class="doc">
++          <div class="title">Not Done</div>
++          <p>
++            Nothing is here yet!
++          </p>
++          <button><router-link style="color: white; text-decoration: none;" class="button">Get this page done!</router-link></button><br><br>
++        </div>
++        <div class="doc">
++          <div class="title alt">This is a title</div>
++          <button class="alt" @click="notif('BTC: ')">This is a button</button>
++          <button class="alt" @click="notif('ETN: ')">This is another button</button>
++        </div>
++      </div>
++    </main>
++  </div>
++</template>
++
++<script>
++  export default {
++    name: 'wallet',
++    methods: {
++      notif (text) {
++        alert(text)
++      },
++
++      open(link) {
++        this.$electron.shell.openExternal(link);
++      },
++      mounted: function() {
++        console.log("Ready!")
++      }
++    }
++  }
++</script>
++
++<style>
++  @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro');
++
++  * {
++    box-sizing: border-box;
++    margin: 0;
++    padding: 0;
++  }
++
++  body { font-family: 'Source Sans Pro', sans-serif; }
++
++  #wrapper {
++    background:
++      radial-gradient(
++        ellipse at top left,
++        rgba(255, 255, 255, 1) 40%,
++        rgba(229, 229, 229, .9) 100%
++      );
++    height: 100vh;
++    padding: 60px 80px;
++    width: 100vw;
++  }
++
++  #logo {
++    height: auto;
++    margin-bottom: 20px;
++    width: 100px;
++  }
++
++  main {
++    display: flex;
++    justify-content: space-between;
++  }
++
++  main > div { flex-basis: 50%; }
++
++  .left-side {
++    display: flex;
++    flex-direction: column;
++  }
++
++  .welcome {
++    color: #555;
++    font-size: 23px;
++    margin-bottom: 10px;
++  }
++
++  .title {
++    color: #2c3e50;
++    font-size: 20px;
++    font-weight: bold;
++    margin-bottom: 6px;
++  }
++
++  .title.alt {
++    font-size: 18px;
++    margin-bottom: 10px;
++  }
++
++  .doc p {
++    color: black;
++    margin-bottom: 10px;
++  }
++
++  .doc button {
++    font-size: .8em;
++    cursor: pointer;
++    outline: none;
++    padding: 0.75em 2em;
++    border-radius: 2em;
++    display: inline-block;
++    color: #fff;
++    background-color: #4fc08d;
++    transition: all 0.15s ease;
++    box-sizing: border-box;
++    border: 1px solid #4fc08d;
++  }
++
++  .doc button.alt {
++    color: #42b983;
++    background-color: transparent;
++  }
++</style>
