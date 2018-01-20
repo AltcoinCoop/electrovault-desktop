@@ -1,0 +1,28 @@
+From dc20f83bc6d5e958fac8d2f9e829a654b0084b31 Mon Sep 17 00:00:00 2001
+From: Anon <r00t1000@users.noreply.github.com>
+Date: Fri, 19 Jan 2018 16:33:39 -0800
+Subject: [PATCH] Update README.md
+
+---
+ README.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/README.md b/README.md
+index 31f8318..e8da47a 100644
+--- a/README.md
++++ b/README.md
+@@ -6,10 +6,10 @@
+ ## To-Do List
+ * GUI Wallet
+   * ~~Landing Page~~
+-  * Installation Page
+-    * Filesystem Setup
+-    * Electroneum Download
+-    * Unzipping and configuration
++  * ~~Installation Page~~
++    * ~~Filesystem Setup~~
++    * ~~Electroneum Download~~
++    * ~~Unzipping and configuration~~
+     * Final Touches
+   * Wallet Page
+ * ~~JavaScript Wallet API~~

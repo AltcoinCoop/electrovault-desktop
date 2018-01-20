@@ -1,0 +1,81 @@
+From b43e3bb5886345d53cc48a4f6eb8adfd57e45bbf Mon Sep 17 00:00:00 2001
+From: r00t1000 <jacob.jime@gmail.com>
+Date: Fri, 19 Jan 2018 16:46:56 -0800
+Subject: [PATCH] Fixed a problem with setupComplete and directories
+
+---
+ src/src/renderer/components/LandingPage.vue | 39 +++++++++++++++++++++--------
+ 1 file changed, 28 insertions(+), 11 deletions(-)
+
+diff --git a/src/src/renderer/components/LandingPage.vue b/src/src/renderer/components/LandingPage.vue
+index 3c05b6e..fe2645e 100644
+--- a/src/src/renderer/components/LandingPage.vue
++++ b/src/src/renderer/components/LandingPage.vue
+@@ -33,39 +33,56 @@
+   import SystemInformation from './LandingPage/SystemInformation';
+ 
+   var store = require('store');
++  var fs = require('fs');
+   const {
+     ipcRenderer
+   } = require('electron');
++  const remote = require('electron').remote
+ 
+ 
+   export default {
+     name: 'landing-page',
+     components: { SystemInformation },
++    data() {
++      return {
++        w: remote.getCurrentWindow()
++      }
++    },
+     methods: {
+       notif (text) {
+         alert(text)
+       },
+ 
++      close() {
++        this.w.close();
++      },
++
+       open(link) {
+         this.$electron.shell.openExternal(link);
+       }
+     },
+     mounted: function() {
++      var self = this;
+       if (store.get('setupComplete') == true) {
+-        var self = this;
+ 
+-        // Get path
+         var electroDir = require('os').homedir() + '\\Desktop\\electrovault_wallet';
+-        var executablePath = electroDir + '\\electroneumd.exe';
+-
+-        // Send message to start Daemon
+-        console.log(ipcRenderer.sendSync('synchronous-message', {
+-          message: "start_daemon",
+-          path: executablePath
+-        }))
+ 
+-        // Move to wallet page
+-        self.$router.push('/wallet')
++        if (!fs.existsSync(electroDir)) {
++          store.set('setupComplete', false);
++          self.close();
++        } else if (fs.existsSync(electroDir)) {
++          // Get path
++          var executablePath = electroDir + '\\electroneumd.exe';
++
++          // Send message to start Daemon
++          console.log(ipcRenderer.sendSync('synchronous-message', {
++            message: "start_daemon",
++            path: executablePath
++          }))
++
++          // Move to wallet page
++          self.$router.push('/wallet')
++        }
+       }
+     }
+   }
