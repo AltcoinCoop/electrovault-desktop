@@ -1,0 +1,44 @@
+From 45f3e1c65f6d7baee28912783add2d0c2166996e Mon Sep 17 00:00:00 2001
+From: r00t1000 <jacob.jime@gmail.com>
+Date: Fri, 19 Jan 2018 22:53:54 -0800
+Subject: [PATCH] Using self.checkComplete() instead of manually checking
+
+---
+ src/src/renderer/components/Install.vue     | 6 +++++-
+ src/src/renderer/components/LandingPage.vue | 4 +---
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/src/renderer/components/Install.vue b/src/src/renderer/components/Install.vue
+index 92e8e42..8a54762 100644
+--- a/src/src/renderer/components/Install.vue
++++ b/src/src/renderer/components/Install.vue
+@@ -264,9 +264,13 @@ export default {
+           if (self.localInfo.height >= self.targetHeight) {
+             store.set('setupComplete', true);
+             self.installSteps[3].title = "Blockchain Downloaded"
++            self.makeSuccess(0);
++            self.makeSuccess(1);
++            self.makeSuccess(2);
+             self.makeSuccess(3);
+             self.makeSuccess(4);
+-            self.$router.push('/wallet');
++            self.checkComplete();
++            //self.$router.push('/wallet');
+           }
+         });
+       });
+diff --git a/src/src/renderer/components/LandingPage.vue b/src/src/renderer/components/LandingPage.vue
+index fe2645e..30d7fa3 100644
+--- a/src/src/renderer/components/LandingPage.vue
++++ b/src/src/renderer/components/LandingPage.vue
+@@ -13,9 +13,7 @@
+         <div class="doc">
+           <div class="title">Installation</div>
+           <p>
+-            To get started with ElectroVault, you will need to install both electroneumd and electroneum-wallet-rpc,
+-            both of these .exe's are needed for this wallet to function properly. This install is easily done with ElectroVault,
+-            simply click the button below!
++            To get started with ElectroVault, just click install!
+           </p>
+           <button><router-link style="color: white; text-decoration: none;" class="button" to="/install">Install</router-link></button><br><br>
+         </div>
